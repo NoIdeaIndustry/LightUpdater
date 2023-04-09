@@ -26,13 +26,8 @@ class _UpdaterPageState extends State<UpdaterPage> {
   // holds the current updater progress
   Progress progress = Progress.CHECK;
 
-  //
-  final bool closeIfStarted = false;
-  final bool restartIfRunning = false;
-
   // used to tell the programm to shutdown after 'closeAfterSecs' seconds
   late CountdownTimer closeTimer;
-  final int closeAfterSecs = 5;
   int curTimerValue = 5;
 
   // holds download/check progress (ex: curIdx/totIdx files remaining.)
@@ -131,7 +126,7 @@ class _UpdaterPageState extends State<UpdaterPage> {
           ),
         ];
       case Progress.START:
-        return closeIfStarted
+        return Config.kCloseIfStarted
             ? [
                 Text(
                   "Closing in $curTimerValue seconds.",
@@ -141,7 +136,7 @@ class _UpdaterPageState extends State<UpdaterPage> {
               ]
             : [];
       case Progress.RUN:
-        return restartIfRunning
+        return Config.kRestartIfRunning
             ? [
                 Text(
                   "Restarting in $curTimerValue seconds.",
@@ -167,17 +162,18 @@ class _UpdaterPageState extends State<UpdaterPage> {
 
     final directory = await Installer.getInstallationDirectory();
     final entries = await Installer.getFilesFromNetwork(
-      '${Config.kHostUrl}/$platform/$platform.json',
+      '${Config.kJsonUrl}/$platform/$platform.json',
     );
 
     // checks if program is running
-    if (await _isProgramRunning('webmail.exe')) {
+    if (await _isProgramRunning('custom.exe')) {
       _updateProgress(Progress.RUN);
 
-      // close and restart updater if restartIfRunning is true
-      if (restartIfRunning) {
+      // close and restart updater if kRestartIfRunning is true
+      if (Config.kRestartIfRunning) {
         _startTimer();
-        await _stopCustom('${directory.path}/webmail', 'webmail.exe');
+        await _stopCustom(
+            '${directory.path}/local/path/from/directory', 'custom.exe');
       }
     } else {
       setState(() {
@@ -215,7 +211,7 @@ class _UpdaterPageState extends State<UpdaterPage> {
     */
 
       // using the following code will make the updater restart over and over (case were your app is already running)
-      _startCustom(directory.path, 'webmail/webmail.exe', []);
+      _startCustom(directory.path, 'local/path/from/directory/custom.exe', []);
       /*_updateProgress(Progress.RUN);
     _startTimer();*/
     }
@@ -232,10 +228,10 @@ class _UpdaterPageState extends State<UpdaterPage> {
 
   // start the timer supposed to close the updater after each steps completed
   void _startTimer() {
-    curTimerValue = closeAfterSecs;
+    curTimerValue = Config.kCloseAfterSecs;
 
     closeTimer = CountdownTimer(
-      Duration(seconds: closeAfterSecs),
+      const Duration(seconds: Config.kCloseAfterSecs),
       const Duration(seconds: 1),
     );
 
@@ -260,7 +256,10 @@ class _UpdaterPageState extends State<UpdaterPage> {
   // download the file using entry url
   Future<void> _downloadFile(final String path, final Entry entry) async {
     final localFile = File('$path/${entry.file}');
-    await Installer.downloadFile(localFile, entry.url);
+    await Installer.downloadFile(
+      localFile,
+      '${Config.kHostUrl}/$platform/${entry.file}',
+    );
 
     setState(() {
       curFilePath = localFile.absolute.path.replaceAll('/', '\\');
@@ -321,7 +320,7 @@ class _UpdaterPageState extends State<UpdaterPage> {
     _createLockFile(path, name);
     _startProgram('$path/$name', args);
     _updateProgress(Progress.START);
-    if (closeIfStarted) _startTimer();
+    if (Config.kCloseIfStarted) _startTimer();
   }
 
   // Use this to close a custom program with a path (where lock file is located), and program name
