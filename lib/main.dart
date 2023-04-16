@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 
 import 'package:window_manager/window_manager.dart';
@@ -14,9 +16,12 @@ Future<void> main() async {
   WindowManager.instance.setSize(const Size(850, 450));
   WindowManager.instance.setResizable(false);
 
-  WindowManager.instance.setIcon(Config.kWindowIcon);
-  WindowManager.instance.setTitle('LightUpdater - ${Config.kCustomWindowName}');
+  if (!Platform.isMacOS) {
+    // does not work on macos (must do on xcode config if you want to config this)
+    WindowManager.instance.setIcon(Config.kWindowIcon);
+  }
 
+  WindowManager.instance.setTitle('LightUpdater - ${Config.kCustomWindowName}');
   WindowManager.instance.setAlwaysOnTop(true);
 
   runApp(const UpdaterPage());

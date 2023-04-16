@@ -7,6 +7,7 @@ enum Progress {
   COMPLETE,
   START,
   RUN,
+  ERROR,
 }
 
 extension ProgressExtension on Progress {
@@ -24,6 +25,8 @@ extension ProgressExtension on Progress {
         return 'The program has now started!';
       case Progress.RUN:
         return 'The program is already running!';
+      case Progress.ERROR:
+        return 'An unexpected error occured!';
       default:
         return '';
     }

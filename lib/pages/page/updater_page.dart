@@ -165,15 +165,20 @@ class _UpdaterPageState extends State<UpdaterPage> {
       '${Config.kJsonUrl}/$platform/$platform.json',
     );
 
+    if (entries == null) {
+      _updateProgress(Progress.ERROR);
+      return;
+    }
+
     // checks if program is running
-    if (await _isProgramRunning('custom.exe')) {
+    if (await _isProgramRunning('my_custom_app.exe')) {
       _updateProgress(Progress.RUN);
 
       // close and restart updater if kRestartIfRunning is true
       if (Config.kRestartIfRunning) {
         _startTimer();
-        await _stopCustom(
-            '${directory.path}/local/path/from/directory', 'custom.exe');
+        await _stopCustom('${directory.path}/local/path/from/dir', 'my_custom_app.exe');
+        // you can stop as many app as you wish.
       }
     } else {
       setState(() {
@@ -205,15 +210,17 @@ class _UpdaterPageState extends State<UpdaterPage> {
       Future.delayed(const Duration(seconds: 2));
 
       /*
-    Call you things here instead...
-      final args = [];
-      _startCustom(directory.path, MY_APP.exe, args)
-    */
+        Call you things here instead...
+        final args = [];
+        _startCustom(directory.path, python/python.exe, args)
+      */
+      _startCustom(directory.path, 'local/path/from/dir/my_custom_app.exe', []);
+      // you can start as many app as you wish.
 
-      // using the following code will make the updater restart over and over (case were your app is already running)
-      _startCustom(directory.path, 'local/path/from/directory/custom.exe', []);
-      /*_updateProgress(Progress.RUN);
-    _startTimer();*/
+      _updateProgress(Progress.RUN);
+      if (Config.kCloseIfStarted) {
+        _startTimer();
+      }
     }
   }
 
@@ -311,8 +318,7 @@ class _UpdaterPageState extends State<UpdaterPage> {
 
   Future<bool> _isProgramRunning(final String name) async {
     final result = await Process.run('tasklist', ['/fo', 'csv', '/nh']);
-    return LineSplitter.split(result.stdout as String)
-        .any((line) => line.toLowerCase().contains(name.toLowerCase()));
+    return LineSplitter.split(result.stdout as String).any((line) => line.toLowerCase().contains(name.toLowerCase()));
   }
 
   // Use this to start a custom program with a path (where exe is located), a program name, and program args

@@ -10,21 +10,11 @@ import 'package:crypto/crypto.dart';
 class Installer {
   // get the right installation directory to download the files into
   static Future<Directory> getInstallationDirectory() async {
-    late Directory directory;
+    final support = await getApplicationSupportDirectory();
+    final roamingDirectory = support.parent.parent;
 
-    if (Platform.isWindows) {
-      final support = await getApplicationSupportDirectory();
-      final roamingDirectory = support.parent.parent;
-
-      final f = Directory('${roamingDirectory.path}/${Config.appFolderName}');
-      f.createSync(recursive: true);
-      directory = f;
-    } else if (Platform.isMacOS) {
-      // broken on macos
-    } else {
-      /// idk yet it's linux
-    }
-
+    final directory = Directory('${roamingDirectory.path}/${Config.appFolderName}');
+    directory.createSync(recursive: true);
     return directory;
   }
 
@@ -38,16 +28,20 @@ class Installer {
   }
 
   // return a json object containing all the data to download as a list of Entry
-  static Future<List<Entry>> getFilesFromNetwork(final String url) async {
-    final response = await http.get(Uri.parse(url));
-    final json = jsonDecode(response.body);
+  static Future<List<Entry>?> getFilesFromNetwork(final String url) async {
+    try {
+      final response = await http.get(Uri.parse(url));
+      final json = jsonDecode(response.body);
 
-    final List<Entry> entries = List.empty(growable: true);
-    for (var element in json) {
-      entries.add(Entry.fromJson(element));
+      final List<Entry> entries = List.empty(growable: true);
+      for (var element in json) {
+        entries.add(Entry.fromJson(element));
+      }
+
+      return entries;
+    } catch (e) {
+      return null;
     }
-
-    return entries;
   }
 
   // writes content inside file
