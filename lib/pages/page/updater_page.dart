@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
@@ -177,7 +178,8 @@ class _UpdaterPageState extends State<UpdaterPage> {
       // close and restart updater if kRestartIfRunning is true
       if (Config.kRestartIfRunning) {
         _startTimer();
-        await _stopCustom('${directory.path}/local/path/from/dir', 'my_custom_app.exe');
+        await _stopCustom(
+            '${directory.path}/local/path/from/dir', 'my_custom_app.exe');
         // you can stop as many app as you wish.
       }
     } else {
@@ -236,26 +238,24 @@ class _UpdaterPageState extends State<UpdaterPage> {
   // start the timer supposed to close the updater after each steps completed
   void _startTimer() {
     curTimerValue = Config.kCloseAfterSecs;
+    Timer timer;
 
-    closeTimer = CountdownTimer(
-      const Duration(seconds: Config.kCloseAfterSecs),
-      const Duration(seconds: 1),
-    );
-
-    closeTimer.listen((timer) {
+    timer = Timer.periodic(const Duration(seconds: 1), (timer) {
       setState(() {
-        curTimerValue -= 1;
+        curTimerValue = Config.kCloseAfterSecs - timer.tick;
       });
-    }, onDone: () {
-      switch (progress) {
-        case Progress.RUN:
-          _updateProgress(Progress.CHECK);
-          _updateLogic();
-          break;
-        case Progress.START:
-          exit(0);
-        default:
-          break;
+
+      if (timer.tick == Config.kCloseAfterSecs) {
+        switch (progress) {
+          case Progress.RUN:
+            _updateProgress(Progress.CHECK);
+            _updateLogic();
+            break;
+          case Progress.START:
+            exit(0);
+          default:
+            timer.cancel();
+        }
       }
     });
   }
@@ -263,10 +263,10 @@ class _UpdaterPageState extends State<UpdaterPage> {
   // download the file using entry url
   Future<void> _downloadFile(final String path, final Entry entry) async {
     final localFile = File('$path/${entry.file}');
-    await Installer.downloadFile(
-      localFile,
-      '${Config.kHostUrl}/$platform/${entry.file}',
-    );
+    final request = await HttpClient()
+        .getUrl(Uri.parse('${Config.kHostUrl}/$platform/${entry.file}'));
+    final response = await request.close();
+    await response.pipe(localFile.openWrite());
 
     setState(() {
       curFilePath = localFile.absolute.path.replaceAll('/', '\\');
@@ -318,7 +318,8 @@ class _UpdaterPageState extends State<UpdaterPage> {
 
   Future<bool> _isProgramRunning(final String name) async {
     final result = await Process.run('tasklist', ['/fo', 'csv', '/nh']);
-    return LineSplitter.split(result.stdout as String).any((line) => line.toLowerCase().contains(name.toLowerCase()));
+    return LineSplitter.split(result.stdout as String)
+        .any((line) => line.toLowerCase().contains(name.toLowerCase()));
   }
 
   // Use this to start a custom program with a path (where exe is located), a program name, and program args

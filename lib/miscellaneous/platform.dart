@@ -2,37 +2,14 @@ import 'dart:io';
 
 enum Supported { windows, linux, macos, unknown }
 
-extension SupportedExtension on Supported {
-  String get name {
-    switch (this) {
-      case Supported.windows:
-        return 'windows';
-      case Supported.linux:
-        return 'linux';
-      case Supported.macos:
-        return 'macos';
-      default:
-        throw Exception('Unsupported platform');
-    }
-  }
-}
-
 class Platforms {
-  static final List<Supported> _available = [
+  static final Set<Supported> _available = {
     Supported.windows,
-  ];
-
-  static final _cache = <String, bool>{};
-  static final _regexes = _available.map((p) => RegExp(p.name)).toList();
+  };
 
   static bool isSupported(final String path) {
-    return _cache.putIfAbsent(path, () {
-      for (final regex in _regexes) {
-        if (regex.hasMatch(path)) return true;
-      }
-
-      return false;
-    });
+    final regex = RegExp(_pattern);
+    return regex.hasMatch(path);
   }
 
   static Supported getCurrent() {
@@ -46,4 +23,6 @@ class Platforms {
       return Supported.unknown;
     }
   }
+
+  static final _pattern = '(${_available.map((p) => p.name).join('|')})';
 }

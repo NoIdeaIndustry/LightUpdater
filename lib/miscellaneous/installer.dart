@@ -13,7 +13,8 @@ class Installer {
     final support = await getApplicationSupportDirectory();
     final roamingDirectory = support.parent.parent;
 
-    final directory = Directory('${roamingDirectory.path}/${Config.appFolderName}');
+    final directory = Directory(
+        '${roamingDirectory.path}${Platform.pathSeparator}${Config.appFolderName}');
     directory.createSync(recursive: true);
     return directory;
   }
@@ -21,40 +22,47 @@ class Installer {
   // check wether the file needs to be downloaded or not
   static Future<bool> needDownload(final File file, final String hash) async {
     if (file.existsSync()) {
-      return _checkHash(file, hash);
+      final isHashMatching = await _checkHash(file, hash);
+      return !isHashMatching;
     }
 
     return false;
   }
 
   // return a json object containing all the data to download as a list of Entry
-  static Future<List<Entry>?> getFilesFromNetwork(final String url) async {
+  static Future<List<Entry>> getFilesFromNetwork(String url) async {
     try {
       final response = await http.get(Uri.parse(url));
-      final json = jsonDecode(response.body);
-
-      final List<Entry> entries = List.empty(growable: true);
-      for (var element in json) {
-        entries.add(Entry.fromJson(element));
+      if (response.statusCode == 200) {
+        final jsonList = jsonDecode(response.body) as List<dynamic>;
+        return jsonList.map((json) => Entry.fromJson(json)).toList();
       }
-
-      return entries;
     } catch (e) {
-      return null;
+      print(e.toString());
     }
+    return [];
   }
 
   // writes content inside file
-  static Future<void> downloadFile(final File file, final String url) async {
-    final response = await http.get(Uri.parse(url));
-    file.createSync(recursive: true);
-    file.writeAsBytesSync(response.bodyBytes);
+  static Future<void> downloadFile(File file, String url) async {
+    try {
+      final response = await http.get(Uri.parse(url));
+      await file.writeAsBytes(response.bodyBytes);
+    } catch (exception) {
+      print('An error occurred while downloading the file.');
+      rethrow;
+    }
   }
 
   // returns true if the 'file' hash is corresponding
-  static Future<bool> _checkHash(final File file, final expectedHash) async {
-    final content = file.readAsBytesSync();
-    final hash = sha256.convert(content).toString();
-    return hash == expectedHash;
+  static Future<bool> _checkHash(File file, final String expectedHash) async {
+    try {
+      final content = await file.readAsBytes();
+      final hash = sha256.convert(content).toString();
+      return hash == expectedHash;
+    } catch (exception) {
+      print('An error occurred while reading the file.');
+      rethrow;
+    }
   }
 }
