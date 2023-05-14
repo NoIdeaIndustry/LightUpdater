@@ -46,7 +46,7 @@ class Config {
 
   static const int kCloseAfterSecs = 5;
 
-  static const bool kCloseIfStarted = false;
+  static const bool kCloseOnceStarted = false;
   static const bool kRestartIfRunning = false;
 }
 ```
@@ -55,16 +55,16 @@ To customize the configuration, edit the values in the Config class to match you
 
 ## Disclaimer
 The downloading system is base on another project. Check out our [LightGenerator](https://github.com/NoIdeaIndustry/LightGenerator) project for more information.<br>
-Dont want to use it? No worries! You just need to follow the same structure if using a json file as your entry point.
+Dont want to use it? No worries! You just need to follow the same structure but you must use a json file as your entry point eitherway.
 ```dart
 class Entry {
-  final String file; // file name
+  final String name; // file name
   final int    size; // file size
-  final String hash; // sha265
+  final String hash; // file calculated sha265
 }
 ```
 
-As of today this project only supports desktop version (and only windows for now)!<br>
+This project will and only support desktop version, for other platforms (mobile), updates are directly handeled by associated stores!<br>
 Stay tuned for updates.
 
 ## License

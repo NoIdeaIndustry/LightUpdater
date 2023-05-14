@@ -16,8 +16,10 @@ Future<void> main() async {
   WindowManager.instance.setSize(const Size(850, 450));
   WindowManager.instance.setResizable(false);
 
-  if (!Platform.isMacOS) {
-    // does not work on macos (must do on xcode config if you want to config this)
+  if (Platform.isWindows) {
+    // only works on windows
+    // for macos -> xcode config or project -> macos/Runner/Assets.xcassets/AppIcon.appiconset
+    // for linux -> .desktop think, must be done manually, good luck with that!
     WindowManager.instance.setIcon(Config.kWindowIcon);
   }
 

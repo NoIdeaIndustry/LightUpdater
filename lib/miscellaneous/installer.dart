@@ -35,7 +35,7 @@ class Installer {
   // returns true if the 'file' hash is corresponding
   static Future<bool> _checkHashMatching(File file, String expected) async {
     final bytes = file.readAsBytesSync();
-    final hash = sha1.convert(bytes).toString();
+    final hash = sha256.convert(bytes).toString();
     return hash != expected;
   }
 

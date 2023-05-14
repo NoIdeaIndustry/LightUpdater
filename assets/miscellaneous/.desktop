@@ -1,0 +1,7 @@
+[Desktop Entry]
+Icon=${SNAP}/meta/gui/yout_icon.png
+Exec=LightUpdater
+Version=1.0
+Type=Application
+Name=LightUpdater
+Terminal=false
