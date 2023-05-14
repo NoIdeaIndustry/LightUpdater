@@ -18,7 +18,7 @@ class CustomWatermark extends StatelessWidget {
           textAlign: TextAlign.center,
         ),
         const Text(
-          'LightUpdater - NoideaIndustry',
+          'LightUpdater - by NoideaIndustry',
           style: Styles.defaultLightLightStyle,
           textAlign: TextAlign.center,
         ),

@@ -24,7 +24,6 @@ Future<void> main() async {
   }
 
   WindowManager.instance.setTitle('LightUpdater - ${Config.kCustomWindowName}');
-  WindowManager.instance.setAlwaysOnTop(true);
 
   runApp(const UpdaterPage());
 }

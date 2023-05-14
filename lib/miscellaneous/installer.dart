@@ -41,16 +41,18 @@ class Installer {
 
   static Future<bool> checkFilesIntegrity(
       final Entry entry, final String path) async {
-    return await needDownload(File('$path/${entry.name}'), entry.hash);
+    return await needDownload(File('$path/${entry.file}'), entry.hash);
   }
 
   // return a json object containing all the data to download as a list of Entry
   static Future<List<Entry>> getFilesFromNetwork(final String url) async {
     final response = await http.get(Uri.parse(url));
-    final json = jsonDecode(response.body);
+    final decodedJson = jsonDecode(response.body);
 
     final List<Entry> entries = [];
-    entries.add(Entry.fromJson(json));
+    for (final decoded in decodedJson) {
+      entries.add(Entry.fromJson(decoded));
+    }
 
     return entries;
   }
@@ -74,7 +76,7 @@ class Installer {
     final directory = Directory(directoryPath);
     directory.createSync(recursive: true);
 
-    await file.writeAsBytes(await response.expand((data) => data).toList());
+    file.writeAsBytesSync(await response.expand((data) => data).toList());
     return file;
   }
 }

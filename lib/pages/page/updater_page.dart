@@ -194,7 +194,7 @@ class _UpdaterPageState extends State<UpdaterPage> {
     await _downloadFiles(_downloads);
     await _updateProgress(Progress.COMPLETE);
 
-    _startRunningPrograms();
+    await _startRunningPrograms();
   }
 
   Future<List<Entry>> _checkFileIntegrity(final List<Entry> entries) async {
@@ -214,13 +214,13 @@ class _UpdaterPageState extends State<UpdaterPage> {
 
   Future<void> _downloadFiles(final List<Entry> entries) async {
     for (final entry in entries) {
-      final file = File('${directory.path}/${entry.name}');
+      final f = File('${directory.path}/${entry.file}');
       await Installer.downloadFile(
-        '${Config.kHostUrl}/$platform/${entry.name}}',
-        file.path,
+        '${Config.kHostUrl}/$platform/${entry.file}}',
+        f.path,
       );
       setState(() {
-        curFilePath = file.absolute.path.replaceAll('/', '\\');
+        curFilePath = f.absolute.path.replaceAll('/', '\\');
         curIdx++;
       });
     }
@@ -228,23 +228,23 @@ class _UpdaterPageState extends State<UpdaterPage> {
 
   // custom method to stop all the programm we want
   Future<void> _stopRunningPrograms() async {
-    if (await _isProgramRunning('my_programme.exe')) {
+    if (await _isProgramRunning('my_app')) {
       await _updateProgress(Progress.RUN);
     }
 
     if (Config.kRestartIfRunning && progress == Progress.RUN) {
-      await _stopCustom(directory.path, 'my_programme.exe');
+      await _stopCustom(directory.path, 'my_app');
       // here add the programms you want to stop from running
 
       _startTimer();
-    } else {}
+    }
   }
 
   // custom method to start all the programm we want
   Future<void> _startRunningPrograms() async {
     await _updateProgress(Progress.START);
 
-    _startCustom(directory.path, 'my_programme.exe', []);
+    _startCustom(directory.path, 'folder/my_app.exe', []);
     // here add the programms you want to start
 
     if (Config.kCloseOnceStarted) {
