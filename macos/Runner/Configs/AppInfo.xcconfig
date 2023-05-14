@@ -8,7 +8,7 @@
 PRODUCT_NAME = light_updater
 
 // The application's bundle identifier
-PRODUCT_BUNDLE_IDENTIFIER = com.example.lightUpdater
+PRODUCT_BUNDLE_IDENTIFIER = com.noideaindustry.lightupdater
 
 // The copyright displayed in application information
-PRODUCT_COPYRIGHT = Copyright © 2023 com.example. All rights reserved.
+PRODUCT_COPYRIGHT = Copyright © 2023 com.noideaindustry.lightupdater. All rights reserved.

@@ -10,6 +10,6 @@ class Config {
   // you do not need to touch this if kCloseIfStarted and kRestartIfRunning = false
   static const int kCloseAfterSecs = 5;
 
-  static const bool kCloseIfStarted = false;
+  static const bool kCloseOnceStarted = false;
   static const bool kRestartIfRunning = false;
 }

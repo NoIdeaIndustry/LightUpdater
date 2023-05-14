@@ -1,68 +1,80 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:archive/archive.dart';
 import 'package:http/http.dart' as http;
-import 'package:light_updater/models/model/entry.dart';
-import 'package:light_updater/utils/utils.dart';
-import 'package:path_provider/path_provider.dart';
 import 'package:crypto/crypto.dart';
 
-class Installer {
-  // get the right installation directory to download the files into
-  static Future<Directory> getInstallationDirectory() async {
-    final support = await getApplicationSupportDirectory();
-    final roamingDirectory = support.parent.parent;
+import 'package:light_updater/models/model/entry.dart';
 
-    final directory = Directory(
-        '${roamingDirectory.path}${Platform.pathSeparator}${Config.appFolderName}');
-    directory.createSync(recursive: true);
-    return directory;
+class Installer {
+  // unpack any archive file with os specific commands
+  static Future<void> unpackArchive(final File file, final String path) async {
+    if (Platform.isMacOS) {
+      await Process.run('unzip', ['-q', file.path, '-d', path]);
+    } else if (Platform.isLinux) {
+      await Process.run('tar', ['-xzf', file.path, '-C', path]);
+    } else {
+      final bytes = File(file.path).readAsBytesSync();
+      final archive = ZipDecoder().decodeBytes(bytes);
+      for (final file in archive) {
+        final filename = '$path/${file.name}';
+
+        if (file.isFile) {
+          final data = file.content as List<int>;
+          final archive = File(filename);
+          await archive.create(recursive: true);
+          await archive.writeAsBytes(data);
+        } else {
+          await Directory(filename).create(recursive: true);
+        }
+      }
+    }
+  }
+
+  // returns true if the 'file' hash is corresponding
+  static Future<bool> _checkHashMatching(File file, String expected) async {
+    final bytes = file.readAsBytesSync();
+    final hash = sha1.convert(bytes).toString();
+    return hash != expected;
+  }
+
+  static Future<bool> checkFilesIntegrity(
+      final Entry entry, final String path) async {
+    return await needDownload(File('$path/${entry.name}'), entry.hash);
+  }
+
+  // return a json object containing all the data to download as a list of Entry
+  static Future<List<Entry>> getFilesFromNetwork(final String url) async {
+    final response = await http.get(Uri.parse(url));
+    final json = jsonDecode(response.body);
+
+    final List<Entry> entries = [];
+    entries.add(Entry.fromJson(json));
+
+    return entries;
   }
 
   // check wether the file needs to be downloaded or not
   static Future<bool> needDownload(final File file, final String hash) async {
     if (file.existsSync()) {
-      final isHashMatching = await _checkHash(file, hash);
-      return !isHashMatching;
+      return _checkHashMatching(file, hash);
     }
-
-    return false;
-  }
-
-  // return a json object containing all the data to download as a list of Entry
-  static Future<List<Entry>> getFilesFromNetwork(String url) async {
-    try {
-      final response = await http.get(Uri.parse(url));
-      if (response.statusCode == 200) {
-        final jsonList = jsonDecode(response.body) as List<dynamic>;
-        return jsonList.map((json) => Entry.fromJson(json)).toList();
-      }
-    } catch (e) {
-      print(e.toString());
-    }
-    return [];
+    return true;
   }
 
   // writes content inside file
-  static Future<void> downloadFile(File file, String url) async {
-    try {
-      final response = await http.get(Uri.parse(url));
-      await file.writeAsBytes(response.bodyBytes);
-    } catch (exception) {
-      print('An error occurred while downloading the file.');
-      rethrow;
-    }
-  }
+  static Future<File> downloadFile(String url, String localPath) async {
+    final uri = Uri.parse(url);
+    final request = await HttpClient().getUrl(uri);
+    final response = await request.close();
+    final file = File(localPath);
 
-  // returns true if the 'file' hash is corresponding
-  static Future<bool> _checkHash(File file, final String expectedHash) async {
-    try {
-      final content = await file.readAsBytes();
-      final hash = sha256.convert(content).toString();
-      return hash == expectedHash;
-    } catch (exception) {
-      print('An error occurred while reading the file.');
-      rethrow;
-    }
+    final directoryPath = file.parent.path;
+    final directory = Directory(directoryPath);
+    directory.createSync(recursive: true);
+
+    await file.writeAsBytes(await response.expand((data) => data).toList());
+    return file;
   }
 }
