@@ -4,6 +4,7 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:light_updater/components/components.dart';
+import 'package:light_updater/miscellaneous/console.dart';
 import 'package:light_updater/miscellaneous/installer.dart';
 import 'package:light_updater/models/models.dart';
 import 'package:light_updater/utils/utils.dart';
@@ -39,6 +40,12 @@ class _UpdaterPageState extends State<UpdaterPage> {
 
   // holds the current file being downloaded/checked
   String curFilePath = "";
+
+  // holds the remote entries found on host
+  List<Entry> _entries = [];
+
+  // holds the entries that needs to be downloaded
+  final List<Entry> _downloads = [];
 
   @override
   void dispose() {
@@ -161,66 +168,59 @@ class _UpdaterPageState extends State<UpdaterPage> {
   }
 
   Future<void> _updateLogic() async {
-    print("Running update logic");
-    await _updateProgress(Progress.CHECK);
-
     directory = Platforms.getInstallDirectory();
 
     await _stopRunningPrograms();
     if (progress == Progress.RUN) return;
 
-    // getting platform associated json file for files download
-    final _entries = await Installer.getFilesFromNetwork(
-      '${Config.kJsonUrl}/$platform/$platform.json',
-    );
+    await _getNetworkEntries();
 
-    // no entries found? means an error occured
-    if (_entries.isEmpty) {
-      await _updateProgress(Progress.ERROR);
-      return;
-    }
-
+    await _updateProgress(Progress.CHECK);
     setState(() {
       curIdx = 0;
       totIdx = _entries.length;
     });
+    await _checkFileIntegrity();
 
-    final _downloads = await _checkFileIntegrity(_entries);
     await _updateProgress(Progress.DOWNLOAD);
     setState(() {
       curIdx = 0;
       totIdx = _downloads.length;
     });
-    await _downloadFiles(_downloads);
-    await _updateProgress(Progress.COMPLETE);
+    await _downloadFiles();
 
+    await _updateProgress(Progress.COMPLETE);
     await _startRunningPrograms();
   }
 
-  Future<List<Entry>> _checkFileIntegrity(final List<Entry> entries) async {
+  Future<void> _getNetworkEntries() async {
+    final data = await Installer.getFilesFromNetwork(
+      '${Config.kJsonUrl}/$platform/$platform.json',
+    );
+    setState(() => _entries = data);
+  }
+
+  Future<List<Entry>> _checkFileIntegrity() async {
     List<Entry> downloads = [];
-    for (final entry in entries) {
+    for (final entry in _entries) {
       if (await Installer.checkFilesIntegrity(entry, directory.path)) {
         downloads.add(entry);
       }
-
-      setState(() {
-        curIdx++;
-      });
+      setState(() => curIdx++);
     }
 
     return downloads;
   }
 
-  Future<void> _downloadFiles(final List<Entry> entries) async {
-    for (final entry in entries) {
-      final f = File('${directory.path}/${entry.file}');
+  Future<void> _downloadFiles() async {
+    for (final entry in _downloads) {
+      final file = File('${directory.path}/${entry.file}');
       await Installer.downloadFile(
         '${Config.kHostUrl}/$platform/${entry.file}}',
-        f.path,
+        file.path,
       );
       setState(() {
-        curFilePath = f.absolute.path.replaceAll('/', '\\');
+        curFilePath = file.absolute.path.replaceAll('/', '\\');
         curIdx++;
       });
     }
@@ -228,28 +228,35 @@ class _UpdaterPageState extends State<UpdaterPage> {
 
   // custom method to stop all the programm we want
   Future<void> _stopRunningPrograms() async {
-    if (await _isProgramRunning('my_app')) {
+    final pid = Console.isProcessRunning('my_app_name');
+    if (pid != null) {
       await _updateProgress(Progress.RUN);
     }
 
     if (Config.kRestartIfRunning && progress == Progress.RUN) {
-      await _stopCustom(directory.path, 'my_app');
-      // here add the programms you want to stop from running
-
       _startTimer();
-    }
+      if (pid != null) {
+        _stopProgram('my_app_name', pid);
+      }
+    } else {}
+
+    if (progress != Progress.RUN) {}
   }
 
   // custom method to start all the programm we want
   Future<void> _startRunningPrograms() async {
     await _updateProgress(Progress.START);
 
-    _startCustom(directory.path, 'folder/my_app.exe', []);
+    // start with a relative path based on 'directory', edit according to app extension
+    _startProgram(
+      'folder/my_app_name${Platform.isMacOS ? '.app' : '.exe'}',
+      [],
+    );
     // here add the programms you want to start
 
     if (Config.kCloseOnceStarted) {
       _startTimer();
-    }
+    } else {}
   }
 
   // update the progress
@@ -257,6 +264,20 @@ class _UpdaterPageState extends State<UpdaterPage> {
     setState(() {
       progress = status;
     });
+  }
+
+  // starts a program based on it's name (should work on any os)
+  void _startProgram(String path, List<String> args) async {
+    final process = await Console.runProcess(
+      path,
+      args,
+      directory.path,
+    );
+  }
+
+  // stops a program based on it's name (only works on windows)
+  void _stopProgram(String name, String pid) {
+    var process = Console.killProcessById(pid);
   }
 
   // start the timer supposed to close the updater after each steps completed
@@ -269,9 +290,7 @@ class _UpdaterPageState extends State<UpdaterPage> {
     );
 
     closeTimer.listen((timer) {
-      setState(() {
-        curTimerValue -= 1;
-      });
+      setState(() => curTimerValue -= 1);
     }, onDone: () {
       switch (progress) {
         case Progress.RUN:
@@ -280,74 +299,8 @@ class _UpdaterPageState extends State<UpdaterPage> {
         case Progress.START:
           exit(0);
         default:
-          closeTimer.cancel();
           break;
       }
     });
-  }
-
-  // starts a program based on it's name (should work on any os)
-  void _startProgram(final String path, List<String> args) async {
-    Process.run(path, args, workingDirectory: directory.path);
-  }
-
-  // stops a program based on it's name (only works on windows)
-  Future<void> _stopProgram(final String name) async {
-    final ProcessResult result;
-    if (Platform.isMacOS) {
-      result = await Process.run('killall', [name]);
-    } else if (Platform.isLinux) {
-      result = await Process.run('pkill', ['-f', name, '-SIGTERM']);
-    } else {
-      result = await Process.run('taskkill', ['/f', '/im', name]);
-    }
-
-    /*
-    if (result.exitCode == 0) {
-      print('Process killed: $name');
-    } else {
-      print('Process not_found: $name');
-    }*/
-  }
-
-  // creates a lock file (use this to keep track of program state (running or not))
-  void _createLockFile(final String path, final String name) {
-    final lockFile = File('$path/$name.lock');
-    lockFile.createSync(recursive: true);
-  }
-
-  // deletes a lock file (use this to keep track of program state (running or not))
-  Future<void> _deleteLockFile(final String path, final String name) async {
-    final lockFile = File('$path/$name.lock');
-    if (await lockFile.exists()) {
-      await lockFile.delete();
-    }
-  }
-
-  // check if a programm is running based on it's name
-  Future<bool> _isProgramRunning(final String name) async {
-    ProcessResult result;
-    if (Platform.isMacOS) {
-      result = await Process.run('ps', ['-ax']);
-    } else if (Platform.isLinux) {
-      result = await Process.run('ps', ['-eo', 'pid,user,%cpu,%mem,command']);
-    } else {
-      result = await Process.run('tasklist', ['/fo', 'csv', '/nh']);
-    }
-    final found = LineSplitter.split(result.stdout as String)
-        .any((line) => line.toLowerCase().contains(name.toLowerCase()));
-    return found;
-  }
-
-  // Use this to start a custom program with a path (where exe is located), a program name, and program args
-  void _startCustom(final String path, final String name, List<String> args) {
-    _createLockFile(path, name.substring(0, name.length - 4));
-    _startProgram('$path/$name', args);
-  }
-
-  // Use this to close a custom program with a path (where lock file is located), and program name
-  Future<void> _stopCustom(final String path, final String name) async {
-    await _deleteLockFile(path, name);
-    await _stopProgram(name);
   }
 }

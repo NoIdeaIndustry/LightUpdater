@@ -1,5 +1,3 @@
-import 'dart:io';
-
 import 'package:flutter/material.dart';
 
 import 'package:window_manager/window_manager.dart';
@@ -15,13 +13,6 @@ Future<void> main() async {
   WindowManager.instance.setMaximumSize(const Size(850, 450));
   WindowManager.instance.setSize(const Size(850, 450));
   WindowManager.instance.setResizable(false);
-
-  if (Platform.isWindows) {
-    // only works on windows
-    // for macos -> xcode config or project -> macos/Runner/Assets.xcassets/AppIcon.appiconset
-    // for linux -> .desktop think, must be done manually, good luck with that!
-    WindowManager.instance.setIcon(Config.kWindowIcon);
-  }
 
   WindowManager.instance.setTitle('LightUpdater - ${Config.kCustomWindowName}');
 

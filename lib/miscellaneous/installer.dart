@@ -47,11 +47,11 @@ class Installer {
   // return a json object containing all the data to download as a list of Entry
   static Future<List<Entry>> getFilesFromNetwork(final String url) async {
     final response = await http.get(Uri.parse(url));
-    final decodedJson = jsonDecode(response.body);
+    final json = jsonDecode(response.body);
 
     final List<Entry> entries = [];
-    for (final decoded in decodedJson) {
-      entries.add(Entry.fromJson(decoded));
+    for (final element in json) {
+      entries.add(Entry.fromJson(element));
     }
 
     return entries;

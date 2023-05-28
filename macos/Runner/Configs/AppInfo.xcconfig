@@ -5,10 +5,10 @@
 // 'flutter create' template.
 
 // The application's name. By default this is also the title of the Flutter window.
-PRODUCT_NAME = light_updater
+PRODUCT_NAME = LightUpdater
 
 // The application's bundle identifier
 PRODUCT_BUNDLE_IDENTIFIER = com.noideaindustry.lightupdater
 
 // The copyright displayed in application information
-PRODUCT_COPYRIGHT = Copyright © 2023 com.noideaindustry.lightupdater. All rights reserved.
+PRODUCT_COPYRIGHT = Copyright © 2023 LightUpdater. All rights reserved.
