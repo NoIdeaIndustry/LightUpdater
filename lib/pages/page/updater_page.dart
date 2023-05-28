@@ -1,10 +1,10 @@
 import 'dart:async';
-import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:light_updater/components/components.dart';
 import 'package:light_updater/miscellaneous/console.dart';
+import 'package:light_updater/miscellaneous/file_logger.dart';
 import 'package:light_updater/miscellaneous/installer.dart';
 import 'package:light_updater/models/models.dart';
 import 'package:light_updater/utils/utils.dart';
@@ -168,7 +168,11 @@ class _UpdaterPageState extends State<UpdaterPage> {
   }
 
   Future<void> _updateLogic() async {
+    FileLogger.writeToLogs('STARTING UPDATE PROCESS...');
     directory = Platforms.getInstallDirectory();
+    FileLogger.writeToLogs(
+      'Found suitable install directory at: \'${directory.absolute.path}\'',
+    );
 
     await _stopRunningPrograms();
     if (progress == Progress.RUN) return;
@@ -194,25 +198,36 @@ class _UpdaterPageState extends State<UpdaterPage> {
   }
 
   Future<void> _getNetworkEntries() async {
+    FileLogger.writeToLogs('RETRIEVING REMOTE FILES...');
     final data = await Installer.getFilesFromNetwork(
       '${Config.kJsonUrl}/$platform/$platform.json',
     );
+    FileLogger.writeToLogs('Found ${data.length} remote files!');
+    if (data.isEmpty) _updateProgress(Progress.ERROR);
     setState(() => _entries = data);
   }
 
-  Future<List<Entry>> _checkFileIntegrity() async {
+  Future<void> _checkFileIntegrity() async {
+    FileLogger.writeToLogs('CHECKING FILES INTEGRITY...');
     List<Entry> downloads = [];
     for (final entry in _entries) {
       if (await Installer.checkFilesIntegrity(entry, directory.path)) {
         downloads.add(entry);
+        FileLogger.writeToLogs('File \'${entry.file}\' needs to be updated!');
       }
       setState(() => curIdx++);
     }
 
-    return downloads;
+    FileLogger.writeToLogs(
+      'Integrity check done for ${_entries.length} files!',
+    );
   }
 
   Future<void> _downloadFiles() async {
+    FileLogger.writeToLogs('DOWNLOADING MISSING FILES...');
+    if (_downloads.isEmpty) {
+      FileLogger.writeToLogs('No missing files detected.');
+    }
     for (final entry in _downloads) {
       final file = File('${directory.path}/${entry.file}');
       await Installer.downloadFile(
@@ -223,11 +238,13 @@ class _UpdaterPageState extends State<UpdaterPage> {
         curFilePath = file.absolute.path.replaceAll('/', '\\');
         curIdx++;
       });
+      FileLogger.writeToLogs('File \'${entry.file}\' successfully downloaded!');
     }
   }
 
   // custom method to stop all the programm we want
   Future<void> _stopRunningPrograms() async {
+    FileLogger.writeToLogs('CHECKING RUNNING PROGRAMMS...');
     final pid = Console.isProcessRunning('my_app_name');
     if (pid != null) {
       await _updateProgress(Progress.RUN);
@@ -240,7 +257,9 @@ class _UpdaterPageState extends State<UpdaterPage> {
       }
     } else {}
 
-    if (progress != Progress.RUN) {}
+    if (progress != Progress.RUN) {
+      FileLogger.writeToLogs('No running programms found.');
+    }
   }
 
   // custom method to start all the programm we want
@@ -268,16 +287,26 @@ class _UpdaterPageState extends State<UpdaterPage> {
 
   // starts a program based on it's name (should work on any os)
   void _startProgram(String path, List<String> args) async {
+    FileLogger.writeToLogs('Starting process at: \'$path\'');
     final process = await Console.runProcess(
       path,
       args,
       directory.path,
+    );
+    FileLogger.writeToLogs(
+      'Process started with pid: ${process.pid}',
     );
   }
 
   // stops a program based on it's name (only works on windows)
   void _stopProgram(String name, String pid) {
     var process = Console.killProcessById(pid);
+    // use the following lines if you want to print whether or not the process has been killed
+    if (process.exitCode == 0) {
+      FileLogger.writeToLogs('Process killed: \'$name\' with pid: \'$pid\'');
+    } else {
+      FileLogger.writeToLogs('Process killed: \'$name\' with pid: \'$pid\'');
+    }
   }
 
   // start the timer supposed to close the updater after each steps completed
